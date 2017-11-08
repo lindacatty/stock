@@ -7,6 +7,10 @@ import argparse
 import schedule
 import logging
 import json
+import time
+
+#atexit can be used to register shutdown_hook
+import atexit
 
 from kafka import KafkaProducer
 from yahoo_finance import Share
@@ -18,6 +22,11 @@ logger.setLevel(logging.DEBUG)
 topic_name = ''
 kafka_broker = ''
 
+def shutdown_hook(producer):
+	logger.info('closing kafka producer')
+	producer.flush(10)
+	producer.close(10)
+	logger.info('kafka producer closed')
 
 def fetch_price_and_send(producer, symbol):
 	logger.debug('about to fetch price')
@@ -62,6 +71,8 @@ if __name__ == '__main__':
 	#pass producer & stock to fetch_price_and_send every 1 sec
 	schedule.every(1).second.do(fetch_price_and_send, producer, symbol)
 
+	atexit.register(shutdown_hook, producer)
+	
 	while True:
 		schedule.run_pending()
 		time.sleep(1)
